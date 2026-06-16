@@ -8,9 +8,12 @@ import (
 )
 
 type Config struct {
-	Port     string
-	Env      string
-	RedisUrl string
+	Port              string
+	Env               string
+	RedisUrl          string
+	TelegramBotToken  string
+	TermiiAPIKey      string
+	FCMServerKey      string
 }
 
 func Load() *Config {
@@ -39,5 +42,8 @@ func Load() *Config {
 		Port:     port,
 		Env:      env,
 		RedisUrl: redisURL,
+		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
+		TermiiAPIKey:     os.Getenv("TERMII_API_KEY"),
+		FCMServerKey:     os.Getenv("FCM_SERVER_KEY"),
 	}
 }
