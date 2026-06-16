@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Habeebamoo/tunnl-backend/internal/configs"
+	"github.com/Habeebamoo/tunnl-backend/internal/database"
 	"github.com/Habeebamoo/tunnl-backend/internal/handlers"
 	"github.com/Habeebamoo/tunnl-backend/internal/queue"
 	"github.com/Habeebamoo/tunnl-backend/internal/services"
@@ -43,6 +44,10 @@ func New() *App {
 	}
 
 	log.Println("Redis connected")
+
+	// Postgres init
+	db := database.NewPostgres(cfg)
+	database.Migrate(db)
 
 	// Gin init
 	if cfg.Env == "production" {
