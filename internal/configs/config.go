@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Port string
-	Env  string
+	Port     string
+	Env      string
+	RedisUrl string
 }
 
 func Load() *Config {
@@ -29,8 +30,14 @@ func Load() *Config {
 		env = "development"
 	}
 
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379"
+	}
+
 	return &Config{
-		Port: port,
-		Env:  env,
+		Port:     port,
+		Env:      env,
+		RedisUrl: redisURL,
 	}
 }
