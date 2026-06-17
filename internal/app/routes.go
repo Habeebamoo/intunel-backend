@@ -2,7 +2,7 @@ package app
 
 import (
 	"github.com/Habeebamoo/tunnl-backend/internal/handlers"
-	"github.com/Habeebamoo/tunnl-backend/internal/middlewares"
+	//"github.com/Habeebamoo/tunnl-backend/internal/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,7 +26,7 @@ func RegisterRoutes(
 
 	// Protected routes
 	protected := v1.Group("/")
-	protected.Use(middlewares.AuthMiddleware(jwtSecret))
+	//protected.Use(middlewares.AuthMiddleware(jwtSecret))
 	{
 		protected.POST("/notifications", notificationHandler.SendNotification)
 	}
