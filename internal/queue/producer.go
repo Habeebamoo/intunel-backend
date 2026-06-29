@@ -27,6 +27,8 @@ func (p *Producer) Publish(ctx context.Context, n models.Notification) error {
 
 	return p.client.XAdd(ctx, &redis.XAddArgs{
 		Stream: NotificationStream,
+		MaxLen: 10000,
+		Approx: true,
 		Values: map[string]interface{}{
 			"data": payload,
 		},

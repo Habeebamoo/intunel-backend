@@ -14,7 +14,6 @@ type User struct {
 	Avatar          string     `gorm:"default:null" json:"avatar,omitempty"`
 	Provider        string     `gorm:"not null" json:"provider"`
 	ProviderID      string     `gorm:"not null" json:"provider_id"`
-	TelegramChatID  string     `gorm:"default:null" json:"telegram_chat_id,omitempty"`
 	FCMToken        string     `gorm:"default:null" json:"fcm_token,omitempty"`
 	Phone           string     `gorm:"default:null" json:"phone,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`

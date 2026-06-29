@@ -15,7 +15,6 @@ type Router struct {
 func NewRouter(cfg *configs.Config) *Router {
 	return &Router{
 		providers: map[string]Provider{
-			"telegram": NewTelegramProvider(cfg),
 			"sms":      NewSMSProvider(cfg),
 			"push":     NewPushProvider(cfg),
 		},

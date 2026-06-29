@@ -12,7 +12,6 @@ type Config struct {
 	Env                      string
 	RedisUrl                 string
 	PostgresUrl              string
-	TelegramBotToken         string
 	TermiiAPIKey             string
 	TermiiSenderID           string
 	FCMServerKey             string
@@ -20,7 +19,7 @@ type Config struct {
 	GoogleClientSecret       string
 	GitHubClientID           string
 	GitHubClientSecret       string
-	FirebaseCredentialsPath  string
+	FirebaseCredentialsJSON  string
 	FrontendUrl              string
 	JwtSecret                string
 }
@@ -52,7 +51,6 @@ func Load() *Config {
 		Env:                      env,
 		RedisUrl: 					      redisURL,
 		PostgresUrl:              os.Getenv("POSTGRES_URL"),
-		TelegramBotToken:         os.Getenv("TELEGRAM_BOT_TOKEN"),
 		TermiiAPIKey:             os.Getenv("TERMII_API_KEY"),
 		TermiiSenderID:           os.Getenv("TERMII_SENDER_ID"),
 		FCMServerKey:             os.Getenv("FCM_SERVER_KEY"),
@@ -60,7 +58,7 @@ func Load() *Config {
 		GoogleClientSecret:       os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GitHubClientID:           os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret:       os.Getenv("GITHUB_CLIENT_SECRET"),
-		FirebaseCredentialsPath:  os.Getenv("FIREBASE_CREDENTIALS_PATH"),
+		FirebaseCredentialsJSON:  os.Getenv("FIREBASE_CREDENTIALS_JSON"),
 		FrontendUrl:              os.Getenv("FRONTEND_URL"),
 		JwtSecret:                os.Getenv("JWT_SECRET"),
 	}

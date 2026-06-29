@@ -17,7 +17,7 @@ type PushProvider struct {
 }
 
 func NewPushProvider(cfg *configs.Config) *PushProvider {
-	opt := option.WithCredentialsFile(cfg.FirebaseCredentialsPath)
+	opt := option.WithCredentialsJSON([]byte(cfg.FirebaseCredentialsJSON))
 
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
