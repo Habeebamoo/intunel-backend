@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/configs"
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
-	"github.com/Habeebamoo/tunnl-backend/internal/services"
-	"github.com/Habeebamoo/tunnl-backend/internal/utils"
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -97,7 +97,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	c.SetCookie(
-    "tunnl_token",
+    "intunel_token",
     authResp.Token,
     60*60*72,   // 72 hours in seconds
     "/",
@@ -168,7 +168,7 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 	}
 
 	c.SetCookie(
-    "tunnl_token",
+    "intunel_token",
     authResp.Token,
     60*60*72,   // 72 hours in seconds
     "/",
@@ -208,6 +208,6 @@ func (h *AuthHandler) fetchGitHubEmail(accessToken string) string {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	c.SetCookie("tunnl_token", "", -1, "/", "", false, true)
+	c.SetCookie("intunel_token", "", -1, "/", "", false, true)
 	utils.SuccessResponse(c, http.StatusOK, "logged out", nil)
 }

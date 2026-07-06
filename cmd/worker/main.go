@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/configs"
-	"github.com/Habeebamoo/tunnl-backend/internal/providers"
-	"github.com/Habeebamoo/tunnl-backend/internal/queue"
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/providers"
+	"github.com/Habeebamoo/intunel-backend/internal/queue"
 
 	"github.com/redis/go-redis/v9"
 )

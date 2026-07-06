@@ -3,7 +3,7 @@ package middlewares
 import (
 	"net/http"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/utils"
+	"github.com/Habeebamoo/intunel-backend/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 

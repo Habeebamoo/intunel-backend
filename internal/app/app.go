@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/configs"
-	"github.com/Habeebamoo/tunnl-backend/internal/database"
-	"github.com/Habeebamoo/tunnl-backend/internal/handlers"
-	"github.com/Habeebamoo/tunnl-backend/internal/middlewares"
-	"github.com/Habeebamoo/tunnl-backend/internal/queue"
-	"github.com/Habeebamoo/tunnl-backend/internal/repositories"
-	"github.com/Habeebamoo/tunnl-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/database"
+	"github.com/Habeebamoo/intunel-backend/internal/handlers"
+	"github.com/Habeebamoo/intunel-backend/internal/middlewares"
+	"github.com/Habeebamoo/intunel-backend/internal/queue"
+	"github.com/Habeebamoo/intunel-backend/internal/repositories"
+	"github.com/Habeebamoo/intunel-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -98,7 +98,7 @@ func New() *App {
 
 func (a *App) Run() error {
 	go func() {
-		log.Printf("Tunnl running on PORT :%s", a.config.Port)
+		log.Printf("intunl running on PORT :%s", a.config.Port)
 		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}

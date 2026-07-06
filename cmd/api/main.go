@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Habeebamoo/tunnl-backend/internal/app"
+	"github.com/Habeebamoo/intunel-backend/internal/app"
 )
 
 func main() {

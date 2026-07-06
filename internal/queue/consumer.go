@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
-	"github.com/Habeebamoo/tunnl-backend/internal/providers"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/providers"
 	"github.com/redis/go-redis/v9"
 )
 

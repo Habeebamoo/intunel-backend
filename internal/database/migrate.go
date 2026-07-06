@@ -3,7 +3,7 @@ package database
 import (
 	"log"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
 	"gorm.io/gorm"
 )
 

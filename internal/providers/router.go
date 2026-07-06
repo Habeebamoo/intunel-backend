@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/configs"
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
 )
 
 type Router struct {

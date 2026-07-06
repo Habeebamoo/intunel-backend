@@ -1,4 +1,4 @@
-module github.com/Habeebamoo/tunnl-backend
+module github.com/Habeebamoo/intunel-backend
 
 go 1.25.8
 

@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/Habeebamoo/tunnl-backend/internal/handlers"
-	//"github.com/Habeebamoo/tunnl-backend/internal/middlewares"
+	"github.com/Habeebamoo/intunel-backend/internal/handlers"
+	//"github.com/Habeebamoo/intunel-backend/internal/middlewares"
 	"github.com/gin-gonic/gin"
 )
 

@@ -3,7 +3,7 @@ package providers
 import (
 	"context"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
 )
 
 type Provider interface {

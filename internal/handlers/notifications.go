@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
-	"github.com/Habeebamoo/tunnl-backend/internal/services"
-	"github.com/Habeebamoo/tunnl-backend/internal/utils"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 

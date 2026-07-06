@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/configs"
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
 	"github.com/resend/resend-go/v3"
 )
 

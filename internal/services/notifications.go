@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
-	"github.com/Habeebamoo/tunnl-backend/internal/queue"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/queue"
 )
 
 type NotificationService interface {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Habeebamoo/tunnl-backend/internal/models"
-	"github.com/Habeebamoo/tunnl-backend/internal/repositories"
-	"github.com/Habeebamoo/tunnl-backend/internal/utils"
+	"github.com/Habeebamoo/intunel-backend/internal/models"
+	"github.com/Habeebamoo/intunel-backend/internal/repositories"
+	"github.com/Habeebamoo/intunel-backend/internal/utils"
 )
 
 type AuthService interface {
