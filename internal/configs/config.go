@@ -12,14 +12,11 @@ type Config struct {
 	Env                      string
 	RedisUrl                 string
 	PostgresUrl              string
-	TermiiAPIKey             string
-	TermiiSenderID           string
-	FCMServerKey             string
+	ResendApiKey             string
 	GoogleClientID           string
 	GoogleClientSecret       string
 	GitHubClientID           string
 	GitHubClientSecret       string
-	FirebaseCredentialsJSON  string
 	FrontendUrl              string
 	JwtSecret                string
 }
@@ -51,14 +48,11 @@ func Load() *Config {
 		Env:                      env,
 		RedisUrl: 					      redisURL,
 		PostgresUrl:              os.Getenv("POSTGRES_URL"),
-		TermiiAPIKey:             os.Getenv("TERMII_API_KEY"),
-		TermiiSenderID:           os.Getenv("TERMII_SENDER_ID"),
-		FCMServerKey:             os.Getenv("FCM_SERVER_KEY"),
+		ResendApiKey: 					 	os.Getenv("RESEND_API_KEY"),
 		GoogleClientID:           os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret:       os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GitHubClientID:           os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret:       os.Getenv("GITHUB_CLIENT_SECRET"),
-		FirebaseCredentialsJSON:  os.Getenv("FIREBASE_CREDENTIALS_JSON"),
 		FrontendUrl:              os.Getenv("FRONTEND_URL"),
 		JwtSecret:                os.Getenv("JWT_SECRET"),
 	}

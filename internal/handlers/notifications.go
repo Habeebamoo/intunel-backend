@@ -25,6 +25,11 @@ func (h *NotificationHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
+	if n.Channel != "email" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid channel. Only 'email' is supported.")
+		return
+	}
+
 	if err := h.service.SendNotification(c.Request.Context(), n); err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

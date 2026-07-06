@@ -10,7 +10,6 @@ import (
 type UserRepository interface {
 	FindOrCreate(ctx context.Context, oauthUser *models.OAuthUser) (*models.User, error)
 	FindByID(ctx context.Context, id string) (*models.User, error)
-	UpdateTelegramChatID(ctx context.Context, userID string, chatID string) error
 }
 
 type userRepository struct {
@@ -52,10 +51,4 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User,
 	var user models.User
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	return &user, err
-}
-
-func (r *userRepository) UpdateTelegramChatID(ctx context.Context, userID string, chatID string) error {
-	return r.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ?", userID).
-		Update("telegram_chat_id", chatID).Error
 }
