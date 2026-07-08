@@ -38,6 +38,8 @@ func (c *Consumer) Start(ctx context.Context) {
 	}
 	log.Println("Worker: listening on stream...")
 
+	workerID := 0
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -58,8 +60,6 @@ func (c *Consumer) Start(ctx context.Context) {
 				log.Printf("stream read error: %v", err)
 				continue
 			}
-
-			workerID := 0
 
 			for _, stream := range entries {
 					for _, msg := range stream.Messages {
