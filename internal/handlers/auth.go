@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -86,8 +85,6 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		Name:       googleUser.Name,
 		Email:      googleUser.Email,
 		Avatar:     googleUser.Picture,
-		Provider:   "google",
-		ProviderID: googleUser.ID,
 	}
 
 	authResp, err := h.service.HandleOAuth(c.Request.Context(), oauthUser)
@@ -157,8 +154,6 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 		Name:       githubUser.Name,
 		Email:      email,
 		Avatar:     githubUser.AvatarURL,
-		Provider:   "github",
-		ProviderID: fmt.Sprintf("%d", githubUser.ID),
 	}
 
 	authResp, err := h.service.HandleOAuth(c.Request.Context(), oauthUser)

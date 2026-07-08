@@ -4,8 +4,6 @@ type OAuthUser struct {
 	Name        string
 	Email       string
 	Avatar      string
-	Provider    string
-	ProviderID  string
 }
 
 type AuthResponse struct {

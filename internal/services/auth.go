@@ -28,7 +28,7 @@ func (s *authService) HandleOAuth(ctx context.Context, oauthUser *models.OAuthUs
 		return nil, fmt.Errorf("failed to find or create user: %w", err)
 	}
 
-	token, err := utils.GenerateToken(user.ID.String(), user.Email, s.jwtSecret)
+	token, err := utils.GenerateToken(user.UserID.String(), user.Email, s.jwtSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}

@@ -24,7 +24,7 @@ func (r *userRepository) FindOrCreate(ctx context.Context, oauthUser *models.OAu
 	var user models.User
 
 	err := r.db.WithContext(ctx).
-		Where("provider = ? AND provider_id = ?", oauthUser.Provider, oauthUser.ProviderID).
+		Where("email = ?", oauthUser.Email).
 		First(&user).Error
 
 	if err == nil {
@@ -36,8 +36,6 @@ func (r *userRepository) FindOrCreate(ctx context.Context, oauthUser *models.OAu
 		Name:       oauthUser.Name,
 		Email:      oauthUser.Email,
 		Avatar:     oauthUser.Avatar,
-		Provider:   oauthUser.Provider,
-		ProviderID: oauthUser.ProviderID,
 	}
 
 	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
