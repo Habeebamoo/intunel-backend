@@ -16,6 +16,7 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
 	"github.com/Habeebamoo/intunel-backend/internal/repositories"
 	"github.com/Habeebamoo/intunel-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -64,13 +65,16 @@ func New() *App {
 	//repositories init
 	userRepo := repositories.NewUserRepository(db)
 
+	//store init
+	stateStore := store.NewOAuthStateStore(redisClient)
+
 	// Services init
 	authService := services.NewAuthService(userRepo, cfg.JwtSecret)
 	producer := queue.NewProducer(redisClient)
 	notificationService := services.NewNotificationService(producer)
 
 	// Handlers init
-	authHandler := handlers.NewAuthHandler(authService, cfg)
+	authHandler := handlers.NewAuthHandler(authService, stateStore, cfg)
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 
 	// Routes

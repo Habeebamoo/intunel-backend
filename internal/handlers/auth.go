@@ -9,6 +9,7 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/models"
 	"github.com/Habeebamoo/intunel-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/store"
 	"github.com/Habeebamoo/intunel-backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -20,10 +21,12 @@ type AuthHandler struct {
 	service      services.AuthService
 	googleConfig *oauth2.Config
 	githubConfig *oauth2.Config
+	stateStore   *store.OAuthStateStore
 	frontendURL  string
+	cfg          *configs.Config
 }
 
-func NewAuthHandler(s services.AuthService, cfg *configs.Config) *AuthHandler {
+func NewAuthHandler(s services.AuthService, stateStore *store.OAuthStateStore, cfg *configs.Config) *AuthHandler {
 	googleConfig := &oauth2.Config{
 		ClientID:     cfg.GoogleClientID,
 		ClientSecret: cfg.GoogleClientSecret,
@@ -44,18 +47,29 @@ func NewAuthHandler(s services.AuthService, cfg *configs.Config) *AuthHandler {
 		service:      s,
 		googleConfig: googleConfig,
 		githubConfig: githubConfig,
+		stateStore:   stateStore,
 		frontendURL:  cfg.FrontendUrl,
+		cfg:          cfg,
 	}
 }
 
 // Google
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
-	url := h.googleConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	state, err := h.stateStore.Generate(c.Request.Context())
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to generate state")
+		return
+	}
+	url := h.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
-	cfg := configs.Load()
+	state := c.Query("state")
+	if err := h.stateStore.Verify(c.Request.Context(), state); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "invalid state parameter")
+		return
+	}
 
 	code := c.Query("code")
 	token, err := h.googleConfig.Exchange(context.Background(), code)
@@ -72,7 +86,6 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-
 	var googleUser struct {
 		ID      string `json:"id"`
 		Email   string `json:"email"`
@@ -82,9 +95,9 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	json.Unmarshal(body, &googleUser)
 
 	oauthUser := &models.OAuthUser{
-		Name:       googleUser.Name,
-		Email:      googleUser.Email,
-		Avatar:     googleUser.Picture,
+		Name:   googleUser.Name,
+		Email:  googleUser.Email,
+		Avatar: googleUser.Picture,
 	}
 
 	authResp, err := h.service.HandleOAuth(c.Request.Context(), oauthUser)
@@ -93,27 +106,27 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-    "intunel_token",
-    authResp.Token,
-    60*60*72,   // 72 hours in seconds
-    "/",
-    "",
-    cfg.Env == "production", // Secure: true in production only
-    true,                    // HttpOnly: JS can't access it
-	)
-
+	h.setAuthCookie(c, authResp.Token)
 	c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/dashboard")
 }
 
 // GitHub
 func (h *AuthHandler) GitHubLogin(c *gin.Context) {
-	url := h.githubConfig.AuthCodeURL("state")
+	state, err := h.stateStore.Generate(c.Request.Context())
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to generate state")
+		return
+	}
+	url := h.githubConfig.AuthCodeURL(state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 func (h *AuthHandler) GitHubCallback(c *gin.Context) {
-	cfg := configs.Load()
+	state := c.Query("state")
+	if err := h.stateStore.Verify(c.Request.Context(), state); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "invalid state parameter")
+		return
+	}
 
 	code := c.Query("code")
 	token, err := h.githubConfig.Exchange(context.Background(), code)
@@ -135,7 +148,6 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	
 	var githubUser struct {
 		ID        int    `json:"id"`
 		Email     string `json:"email"`
@@ -144,16 +156,15 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 	}
 	json.Unmarshal(body, &githubUser)
 
-	// GitHub may not return email, fetch it separately
 	email := githubUser.Email
 	if email == "" {
 		email = h.fetchGitHubEmail(token.AccessToken)
 	}
 
 	oauthUser := &models.OAuthUser{
-		Name:       githubUser.Name,
-		Email:      email,
-		Avatar:     githubUser.AvatarURL,
+		Name:   githubUser.Name,
+		Email:  email,
+		Avatar: githubUser.AvatarURL,
 	}
 
 	authResp, err := h.service.HandleOAuth(c.Request.Context(), oauthUser)
@@ -162,16 +173,7 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-    "intunel_token",
-    authResp.Token,
-    60*60*72,   // 72 hours in seconds
-    "/",
-    "",
-    cfg.Env == "production", // Secure: true in production only
-    true,                    // HttpOnly: JS can't access it
-	)
-
+	h.setAuthCookie(c, authResp.Token)
 	c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/dashboard")
 }
 
@@ -200,6 +202,18 @@ func (h *AuthHandler) fetchGitHubEmail(accessToken string) string {
 		}
 	}
 	return ""
+}
+
+func (h *AuthHandler) setAuthCookie(c *gin.Context, token string) {
+	c.SetCookie(
+		"intunel_token",
+		token,
+		60*60*72,
+		"/",
+		"",
+		h.cfg.Env == "production",
+		true,
+	)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
