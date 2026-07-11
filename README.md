@@ -231,11 +231,6 @@ flowchart TD
 * Retry mechanism with exponential backoff
 * Dead Letter Queue (DLQ)
 * Scheduled notifications
-* Multiple notification channels
-
-  * SMS
-  * Push Notifications
-  * WhatsApp
 * Email templates
 * Metrics and monitoring
 * Distributed tracing
