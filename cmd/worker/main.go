@@ -10,6 +10,7 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/providers"
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
+	"github.com/Habeebamoo/intunel-backend/internal/worker"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -35,11 +36,15 @@ func main() {
 	// Init providers
 	router := providers.NewRouter(cfg)
 
-	// Init consumer
+	// Init consumer and reaper
 	consumer := queue.NewConsumer(redisClient, router)
+	reaper := worker.NewReaper(redisClient, router)
 
-	// Start consuming
+
+	// run consumer and reaper in separate goroutines
 	go consumer.Start(ctx)
+	go reaper.Start(ctx)
+
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

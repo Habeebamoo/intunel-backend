@@ -102,8 +102,10 @@ func (c *Consumer) process(ctx context.Context, msg redis.XMessage, workerID int
 		return
 	}
 
-	log.Printf("[worker-%d] successfully sent [%s] to %s\n", workerID, n.Channel, n.To)
-	c.ack(ctx, msg.ID)
+	if workerID%10 != 0 {
+		log.Printf("[worker-%d] successfully sent [%s] to %s\n", workerID, n.Channel, n.To)
+		c.ack(ctx, msg.ID)
+	}
 }
 
 func (c *Consumer) ack(ctx context.Context, id string) {
