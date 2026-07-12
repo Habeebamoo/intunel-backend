@@ -95,17 +95,19 @@ func (c *Consumer) process(ctx context.Context, msg redis.XMessage, workerID int
 		return
 	}
 
-	log.Printf("[worker-%d] routing [%s] → %s\n", workerID, n.Channel, n.To)
-
 	if err := c.router.Route(ctx, n); err != nil {
 		log.Printf("[worker-%d] failed to send [%s] to %s: %v\n", workerID, n.Channel, n.To, err)
 		return
 	}
 
-	if workerID%10 != 0 {
-		log.Printf("[worker-%d] successfully sent [%s] to %s\n", workerID, n.Channel, n.To)
-		c.ack(ctx, msg.ID)
-	}
+	////simulate a failure for every 3rd worker to test the reaper functionality
+	// if workerID%3 == 0 {
+	// 		log.Printf("[worker-%d] simulating failure for message %s\n", workerID, msg.ID)
+	// 		return
+	// }
+
+	log.Printf("[worker-%d] successfully sent [%s] to %s\n", workerID, n.Channel, n.To)
+	c.ack(ctx, msg.ID)
 }
 
 func (c *Consumer) ack(ctx context.Context, id string) {

@@ -14,6 +14,8 @@ flowchart LR
     Group["Consumer Group"]
     Worker["Notification Worker"]
     Semaphore["Semaphore\nMax 10 Goroutines"]
+    Reaper["Retry Reaper\nRuns every 60s"]
+    DLQ["Dead Letter Queue\nRedis Stream"]
     Email["Resend Email API"]
     Recipient[Recipient]
 
@@ -24,6 +26,9 @@ flowchart LR
     Worker --> Semaphore
     Semaphore --> Email
     Email --> Recipient
+    Worker -- "NACK / no ACK" --> Stream
+    Stream -- "PEL idle 60s+" --> Reaper
+    Reaper -- "max retries exceeded" --> DLQ
 ```
 
 The runtime flow is:
@@ -68,6 +73,34 @@ Responsibilities:
 * Uses a semaphore to limit concurrency to 10 goroutines.
 * Sends emails through Resend.
 * Acknowledges successfully processed messages.
+
+### Retry Reaper
+
+Runs as a background goroutine inside the worker service.
+
+Responsibilities:
+
+* Wakes up every 60 seconds and scans the Pending Entries List (PEL).
+* Claims messages that have been idle beyond their retry threshold.
+* Applies exponential-style backoff between retries:
+  * Retry 1 — after 1 minute idle
+  * Retry 2 — after 5 minutes idle
+  * Retry 3 — move to Dead Letter Queue
+* Tracks retry count per message in a Redis Hash (`notifications:retry:<msgID>`).
+* Deletes the hash key on success or after DLQ handoff.
+
+---
+
+### Dead Letter Queue (DLQ)
+
+A separate Redis Stream (`notifications:stream:dead`) that holds messages which have exhausted all retry attempts.
+
+Each DLQ entry stores:
+
+* `data` — original notification payload
+* `error` — exact error from the last failed attempt
+* `failed_at` — unix timestamp of final failure
+* `msg_id` — original stream message ID for traceability
 
 ---
 
@@ -126,6 +159,21 @@ This prevents:
 * API rate-limit spikes
 * overwhelming the email provider
 * uncontrolled goroutine growth
+
+### Retry Mechanism with Backoff
+
+Failed messages are not dropped or retried immediately. Instead they remain in the Redis Pending Entries List (PEL) and a separate Reaper process claims them after an idle threshold.
+
+Backoff windows:
+* Retry 1 — 1 minute
+* Retry 2 — 5 minutes
+* Retry 3 — Dead Letter Queue
+
+Retry state is stored in a Redis Hash per message with a 24 hour TTL as a safety net against orphaned keys.
+
+### Dead Letter Queue
+
+Messages that fail all 3 retry attempts are moved to a dedicated DLQ stream with the original payload and exact error reason preserved. This allows for future inspection, alerting, or manual replay without losing the message.
 
 ---
 
@@ -198,8 +246,14 @@ flowchart TD
     Semaphore["Acquire Semaphore Slot"]
     Goroutine["Start Goroutine"]
     Send["Send Email via Resend"]
+    Success{"Success?"}
     Ack["XACK Message"]
     Release["Release Semaphore Slot"]
+    PEL["Stay in PEL"]
+    Reaper["Reaper Claims after idle threshold"]
+    RetryCount{"Retry count?"}
+    Retry["Retry Send"]
+    DLQ["Move to DLQ"]
 
     Request --> Validate
     Validate --> Publish
@@ -207,8 +261,15 @@ flowchart TD
     Read --> Semaphore
     Semaphore --> Goroutine
     Goroutine --> Send
-    Send --> Ack
+    Send --> Success
+    Success -- "yes" --> Ack
     Ack --> Release
+    Success -- "no" --> PEL
+    PEL --> Reaper
+    Reaper --> RetryCount
+    RetryCount -- "< 3" --> Retry
+    Retry --> Success
+    RetryCount -- ">= 3" --> DLQ
 ```
 
 ---
@@ -218,6 +279,8 @@ flowchart TD
 * Go
 * Redis Streams
 * Redis Consumer Groups
+* Redis Hash (retry state)
+* Dead Letter Queue pattern
 * Goroutines
 * Channels
 * Semaphore Pattern
@@ -228,8 +291,6 @@ flowchart TD
 
 ## Future Improvements
 
-* Retry mechanism with exponential backoff
-* Dead Letter Queue (DLQ)
 * Scheduled notifications
 * Email templates
 * Metrics and monitoring
@@ -247,3 +308,4 @@ flowchart TD
 * Consumer Groups enable multiple worker instances for horizontal scaling.
 * Goroutine concurrency is intentionally capped at 10 using a semaphore to maintain stable resource usage.
 * Additional notification channels can be added without changing the API by extending the worker layer.
+

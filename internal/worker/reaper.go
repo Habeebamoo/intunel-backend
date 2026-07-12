@@ -13,6 +13,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	retryHashPrefix = "notifications:retry:"
+	dlqStream       = "notifications:stream:dead"
+	maxRetries      = 3
+)
+
 type Reaper struct {
 	client *redis.Client
 	router *providers.Router
@@ -23,7 +29,7 @@ func NewReaper(client *redis.Client, router *providers.Router) *Reaper {
 }
 
 func (r *Reaper) Start(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -41,37 +47,47 @@ func (r *Reaper) Start(ctx context.Context) {
 func (r *Reaper) ClaimStuckMessages(ctx context.Context) {
 	messages, err := r.FindPendingMessages(ctx)
 	if err != nil {
-		fmt.Printf("Reaper: error finding pending messages: %v\n", err)
-		return
+			fmt.Printf("Reaper: error finding pending messages: %v\n", err)
+			return
 	}
 
 	for _, msg := range messages {
-		if msg.Idle < 1 * time.Minute {
-			continue
-		}
+			count := r.getRetryCount(ctx, msg.ID)
 
-		fmt.Printf("Reaper: claiming message %s (idle for %v)\n", msg.ID, msg.Idle)
+			switch count {
+			case 0:
+					r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+			case 1:
+					if msg.Idle >= 1*time.Minute {
+						r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+					}
+			case 2:
+					if msg.Idle >= 5*time.Minute {
+						r.claimAndProcess(ctx, msg.ID, 5*time.Minute)
+					}
+			default:
+					r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+			}
+	}
+}
 
-		claimedMessages, err := r.client.XClaim(ctx, &redis.XClaimArgs{
+func (r *Reaper) claimAndProcess(ctx context.Context, msgID string, minIdle time.Duration) {
+	claimedMessages, err := r.client.XClaim(ctx, &redis.XClaimArgs{
 			Stream:   queue.NotificationStream,
 			Group:    queue.ConsumerGroup,
 			Consumer: queue.ConsumerName,
-			MinIdle:  1 * time.Minute,
-			Messages: []string{msg.ID},
-		}).Result()
+			MinIdle:  minIdle,
+			Messages: []string{msgID},
+	}).Result()
 
-		if err != nil {
-			fmt.Printf("Reaper: error claiming message %s: %v\n", msg.ID, err)
-		}
-
-		for _, claimed := range claimedMessages {
-			go func(m redis.XMessage) {
-
-				r.Process(ctx, m)
-			}(claimed)
-		}
-
+	if err != nil || len(claimedMessages) == 0 {
+    fmt.Printf("Reaper: message %s not ready yet or already processed\n", msgID)
+    return
 	}
+
+	go func(m redis.XMessage) {
+		r.Process(ctx, m)
+	}(claimedMessages[0])
 }
 
 func (r *Reaper) Process(ctx context.Context, msg redis.XMessage) {
@@ -91,14 +107,14 @@ func (r *Reaper) Process(ctx context.Context, msg redis.XMessage) {
 		return
 	}
 
-	log.Printf("reaper: routing [%s] → %s\n", n.Channel, n.To)
-
 	if err := r.router.Route(ctx, n); err != nil {
 		log.Printf("reaper: failed to send [%s] to %s: %v\n", n.Channel, n.To, err)
+		r.handleFailure(ctx, msg, err.Error())
 		return
 	}
-	
+
 	log.Printf("reaper: successfully sent [%s] to %s\n", n.Channel, n.To)
+	r.client.Del(ctx, retryHashPrefix+msg.ID)
 	r.ack(ctx, msg.ID)
 }
 
@@ -116,6 +132,60 @@ func (r *Reaper) FindPendingMessages(ctx context.Context) ([]redis.XPendingExt, 
 	}
 
 	return messages, nil
+}
+
+func (r *Reaper) getRetryCount(ctx context.Context, msgID string) int {
+	val, err := r.client.HGet(ctx, retryHashPrefix+msgID, "count").Int()
+	if err != nil {
+			return 0
+	}
+	return val
+}
+
+func (r *Reaper) handleFailure(ctx context.Context, msg redis.XMessage, errReason string) {
+	key := retryHashPrefix + msg.ID
+	count := r.getRetryCount(ctx, msg.ID)
+
+	if count == 0 {
+		r.client.HSet(ctx, key, "first_failed_at", time.Now().Unix())
+	}
+
+	newCount := count + 1
+	r.client.HSet(ctx, key, "count", newCount)
+	r.client.Expire(ctx, key, 24*time.Hour)
+
+	if newCount >= maxRetries {
+		log.Printf("reaper: message %s exceeded max retries, moving to DLQ\n", msg.ID)
+		r.sendToDLQ(ctx, msg, errReason)
+		return
+	}
+
+	log.Printf("reaper: message %s failed, retry count now %d\n", msg.ID, newCount)
+}
+
+func (r *Reaper) sendToDLQ(ctx context.Context, msg redis.XMessage, errReason string) {
+	raw, _ := r.client.XRange(ctx, queue.NotificationStream, msg.ID, msg.ID).Result()
+
+	originalData := ""
+	if len(raw) > 0 {
+			if data, ok := raw[0].Values["data"].(string); ok {
+					originalData = data
+			}
+	}
+
+	r.client.XAdd(ctx, &redis.XAddArgs{
+			Stream: dlqStream,
+			Values: map[string]interface{}{
+					"data":      originalData,
+					"error":     errReason,
+					"failed_at": time.Now().Unix(),
+					"msg_id":    msg.ID,
+			},
+	})
+
+	r.client.Del(ctx, retryHashPrefix+msg.ID)
+	r.ack(ctx, msg.ID)
+	log.Printf("reaper: message %s moved to DLQ\n", msg.ID)
 }
 
 func (r *Reaper) ack(ctx context.Context, id string) {
