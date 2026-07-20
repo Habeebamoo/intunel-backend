@@ -213,8 +213,6 @@ Retry state is stored in a Redis Hash per message with a 24 hour TTL as a safety
 
 Messages that fail all 3 retry attempts are moved to a dedicated DLQ stream with the original payload and exact error reason preserved. This allows for future inspection, alerting, or manual replay without losing the message.
 
----
-
 ### Scheduled Notifications
 
 Scheduled notifications are stored in PostgreSQL rather than queued directly in Redis. This ensures they survive worker restarts, Redis flushes, or any infrastructure failure before their send time.
@@ -222,6 +220,8 @@ Scheduled notifications are stored in PostgreSQL rather than queued directly in 
 The client sends a human-readable date, time, and IANA timezone name (e.g. `Africa/Lagos`, `Europe/London`, `America/New_York`). The API converts this to UTC before saving, so the scheduler always operates in UTC regardless of the sender's location or season. DST changes are handled automatically by Go's timezone database.
 
 Once the scheduled time is reached the notification enters the standard stream pipeline and benefits from the same retry and DLQ guarantees as immediate notifications.
+
+---
 
 ## Running Locally
 
