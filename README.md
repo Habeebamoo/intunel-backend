@@ -15,12 +15,17 @@ flowchart LR
     Worker["Notification Worker"]
     Semaphore["Semaphore\nMax 10 Goroutines"]
     Reaper["Retry Reaper\nRuns every 60s"]
+    Scheduler["Scheduler\nRuns every 60s"]
+    Postgres[("PostgreSQL\nScheduled Jobs")]
     DLQ["Dead Letter Queue\nRedis Stream"]
     Email["Resend Email API"]
     Recipient[Recipient]
 
     Client --> API
-    API --> Stream
+    API -- "immediate" --> Stream
+    API -- "scheduled" --> Postgres
+    Postgres --> Scheduler
+    Scheduler -- "due notifications" --> Stream
     Stream --> Group
     Group --> Worker
     Worker --> Semaphore
@@ -35,12 +40,14 @@ The runtime flow is:
 
 1. A client sends a notification request to the API.
 2. The API validates the request.
-3. The notification is published to a Redis Stream.
-4. A separate worker service continuously reads new messages using a Redis Consumer Group.
-5. Each message is processed in its own goroutine.
-6. A semaphore limits the number of concurrently running goroutines to 10.
-7. The notification is sent through the Resend Email API.
-8. Once processing succeeds, the message is acknowledged (`XACK`) to remove it from the Pending Entries List.
+3. If the notification is immediate, it is published to a Redis Stream.
+4. If the notification is scheduled, it is saved to PostgreSQL with a UTC timestamp.
+5. A separate worker service continuously reads new messages using a Redis Consumer Group.
+6. Each message is processed in its own goroutine.
+7. A semaphore limits the number of concurrently running goroutines to 10.
+8. The notification is sent through the Resend Email API.
+9. Once processing succeeds, the message is acknowledged (`XACK`) to remove it from the Pending Entries List.
+10. A Scheduler goroutine wakes every 60 seconds, queries PostgreSQL for due notifications, publishes them to the Redis Stream, and marks them as queued.
 
 ---
 
@@ -88,6 +95,37 @@ Responsibilities:
   * Retry 3 — move to Dead Letter Queue
 * Tracks retry count per message in a Redis Hash (`notifications:retry:<msgID>`).
 * Deletes the hash key on success or after DLQ handoff.
+
+---
+
+### Scheduler
+
+Runs as a background goroutine inside the worker service alongside the consumer and reaper.
+
+Responsibilities:
+
+* Wakes up every 60 seconds.
+* Queries PostgreSQL for notifications where `status = scheduled` and `scheduled_at <= now (UTC)`.
+* Publishes each due notification to the Redis Stream.
+* Marks each published notification as `queued` with a `published_at` timestamp.
+
+Scheduled notifications are stored in PostgreSQL rather than Redis to ensure durability across restarts. Once published to the stream they follow the same processing pipeline as immediate notifications including retry and DLQ support.
+
+---
+
+### PostgreSQL
+
+Used exclusively for scheduled notification storage.
+
+Each scheduled notification stores:
+
+* `channel` — delivery channel (email, sms, push)
+* `to_address` — recipient
+* `title` — notification title
+* `body` — notification body
+* `scheduled_at` — UTC timestamp of when to send
+* `status` — `scheduled` → `queued`
+* `published_at` — when the scheduler published it to the stream
 
 ---
 
@@ -177,6 +215,14 @@ Messages that fail all 3 retry attempts are moved to a dedicated DLQ stream with
 
 ---
 
+### Scheduled Notifications
+
+Scheduled notifications are stored in PostgreSQL rather than queued directly in Redis. This ensures they survive worker restarts, Redis flushes, or any infrastructure failure before their send time.
+
+The client sends a human-readable date, time, and IANA timezone name (e.g. `Africa/Lagos`, `Europe/London`, `America/New_York`). The API converts this to UTC before saving, so the scheduler always operates in UTC regardless of the sender's location or season. DST changes are handled automatically by Go's timezone database.
+
+Once the scheduled time is reached the notification enters the standard stream pipeline and benefits from the same retry and DLQ guarantees as immediate notifications.
+
 ## Running Locally
 
 ### Using Docker
@@ -235,13 +281,39 @@ Content-Type: application/json
 
 ---
 
+## Scheduled Notification Request
+
+```http
+POST /api/v1/notifications
+Content-Type: application/json
+```
+
+```json
+{
+  "channel": "email",
+  "to": "john@example.com",
+  "title": "Trial ending soon",
+  "body": "<h1>Your trial ends tomorrow</h1>",
+  "date": "2026-07-21",
+  "time": "09:00:00",
+  "timezone": "Africa/Lagos"
+}
+```
+
+The API converts the local time to UTC using the provided IANA timezone, saves it to PostgreSQL, and returns `202 Accepted`. The scheduler publishes it to the stream when the time is reached.
+
+---
+
 ## Processing Pipeline
 
 ```mermaid
 flowchart TD
     Request["Receive HTTP Request"]
     Validate["Validate Payload"]
+    Scheduled{"Scheduled?"}
+    SaveDB["Save to PostgreSQL\nstatus: scheduled"]
     Publish["Publish to Redis Stream"]
+    Scheduler["Scheduler wakes every 60s\nQueries due notifications"]
     Read["Worker Reads Stream"]
     Semaphore["Acquire Semaphore Slot"]
     Goroutine["Start Goroutine"]
@@ -256,7 +328,11 @@ flowchart TD
     DLQ["Move to DLQ"]
 
     Request --> Validate
-    Validate --> Publish
+    Validate --> Scheduled
+    Scheduled -- "yes" --> SaveDB
+    Scheduled -- "no" --> Publish
+    SaveDB --> Scheduler
+    Scheduler --> Publish
     Publish --> Read
     Read --> Semaphore
     Semaphore --> Goroutine
@@ -281,6 +357,8 @@ flowchart TD
 * Redis Consumer Groups
 * Redis Hash (retry state)
 * Dead Letter Queue pattern
+* PostgreSQL (scheduled notification storage)
+* GORM
 * Goroutines
 * Channels
 * Semaphore Pattern
@@ -291,7 +369,6 @@ flowchart TD
 
 ## Future Improvements
 
-* Scheduled notifications
 * Email templates
 * Metrics and monitoring
 * Distributed tracing
@@ -308,4 +385,6 @@ flowchart TD
 * Consumer Groups enable multiple worker instances for horizontal scaling.
 * Goroutine concurrency is intentionally capped at 10 using a semaphore to maintain stable resource usage.
 * Additional notification channels can be added without changing the API by extending the worker layer.
+* Scheduled notifications are stored in PostgreSQL for durability and converted to UTC at request time using IANA timezone names.
+* The Scheduler, Consumer, and Reaper all run as goroutines within the same worker binary sharing a single Redis and PostgreSQL connection pool.
 
