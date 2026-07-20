@@ -64,6 +64,7 @@ func New() *App {
 
 	//repositories init
 	userRepo := repositories.NewUserRepository(db)
+	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
 
 	//store init
 	stateStore := store.NewOAuthStateStore(redisClient)
@@ -71,7 +72,7 @@ func New() *App {
 	// Services init
 	authService := services.NewAuthService(userRepo, cfg.JwtSecret)
 	producer := queue.NewProducer(redisClient)
-	notificationService := services.NewNotificationService(producer)
+	notificationService := services.NewNotificationService(producer, schedulerRepo)
 
 	// Handlers init
 	authHandler := handlers.NewAuthHandler(authService, stateStore, cfg)

@@ -8,8 +8,10 @@ import (
 	"syscall"
 
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
+	"github.com/Habeebamoo/intunel-backend/internal/database"
 	"github.com/Habeebamoo/intunel-backend/internal/providers"
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
+	"github.com/Habeebamoo/intunel-backend/internal/repositories"
 	"github.com/Habeebamoo/intunel-backend/internal/worker"
 
 	"github.com/redis/go-redis/v9"
@@ -33,18 +35,23 @@ func main() {
 	}
 	log.Println("Worker: Redis connected")
 
+	//Init db
+	db := database.NewPostgres(cfg)
+	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
+	producer := queue.NewProducer(redisClient)
+
 	// Init providers
 	router := providers.NewRouter(cfg)
 
 	// Init consumer and reaper
+	scheduler := worker.NewScheduler(schedulerRepo, producer)
 	consumer := queue.NewConsumer(redisClient, router)
 	reaper := worker.NewReaper(redisClient, router)
 
-
-	// run consumer and reaper in separate goroutines
+	// run consumer, reaper, and scheduler in separate goroutines
 	go consumer.Start(ctx)
 	go reaper.Start(ctx)
-
+	go scheduler.Start(ctx)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

@@ -52,22 +52,22 @@ func (r *Reaper) ClaimStuckMessages(ctx context.Context) {
 	}
 
 	for _, msg := range messages {
-			count := r.getRetryCount(ctx, msg.ID)
+		count := r.getRetryCount(ctx, msg.ID)
 
-			switch count {
-			case 0:
-					r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
-			case 1:
-					if msg.Idle >= 1*time.Minute {
-						r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
-					}
-			case 2:
-					if msg.Idle >= 5*time.Minute {
-						r.claimAndProcess(ctx, msg.ID, 5*time.Minute)
-					}
-			default:
-					r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+		switch count {
+		case 0:
+			r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+		case 1:
+			if msg.Idle >= 1*time.Minute {
+				r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
 			}
+		case 2:
+			if msg.Idle >= 5*time.Minute {
+				r.claimAndProcess(ctx, msg.ID, 5*time.Minute)
+			}
+		default:
+			r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+		}
 	}
 }
 

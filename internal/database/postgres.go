@@ -2,6 +2,7 @@ package database
 
 import (
 	"log"
+	"time"
 
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"gorm.io/driver/postgres"
@@ -12,7 +13,11 @@ import (
 func NewPostgres(cfg *configs.Config) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(cfg.PostgresUrl), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
+		NowFunc: func() time.Time {
+				return time.Now().UTC()
+		},
 	})
+
 	if err != nil {
 		log.Fatalf("could not connect to postgres: %v", err)
 	}
